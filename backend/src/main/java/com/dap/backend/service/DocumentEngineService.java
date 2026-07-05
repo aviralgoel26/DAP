@@ -2,6 +2,7 @@ package com.dap.backend.service;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,8 @@ import java.time.format.DateTimeFormatter;
 
 @Service
 public class DocumentEngineService {
+    @Autowired
+private FileService fileService;
 
     @Value("${template.storage.path}")
     private String templatePath;
@@ -53,34 +56,30 @@ private String generatedPath;
 
 
     }
-private String generateFileName(String templateName) {
 
-    String timestamp = LocalDateTime.now()
-            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-
-    return templateName + "_" + timestamp + ".docx";
-
-}
     public DocumentResponse generateDocument(DocumentRequest request) {
 
     try {
 
         String templateFile =
-                templatePath + "/" +
-                request.getTemplateName() +
-                "/template.docx";
+        fileService.buildTemplatePath(
+                request.getTemplateName()
+        );
 
-        String generatedFileName =
-                generateFileName(request.getTemplateName());
+       String generatedFileName =
+        fileService.generateFileName(
+                request.getTemplateName()
+        );
 
         String outputFile =
-                generatedPath + "/" + generatedFileName;
-
-        Files.copy(
-                Paths.get(templateFile),
-                Paths.get(outputFile),
-                StandardCopyOption.REPLACE_EXISTING
+        fileService.buildOutputPath(
+                generatedFileName
         );
+
+        fileService.copyTemplate(
+        templateFile,
+        outputFile
+);
         FileInputStream fis = new FileInputStream(outputFile);
 
         XWPFDocument document = new XWPFDocument(fis);
