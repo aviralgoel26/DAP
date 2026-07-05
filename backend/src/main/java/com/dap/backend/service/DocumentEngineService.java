@@ -17,12 +17,16 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 
 @Service
 public class DocumentEngineService {
     @Autowired
 private FileService fileService;
+@Autowired
+private PlaceholderService placeholderService;
 
     @Value("${template.storage.path}")
     private String templatePath;
@@ -84,17 +88,23 @@ private String generatedPath;
 
         XWPFDocument document = new XWPFDocument(fis);
 
-        replacePlaceholder(
-        document,
+       Map<String, String> placeholders = new HashMap<>();
+
+placeholders.put(
         "{{companyName}}",
         request.getCompanyName()
 );
 
-replacePlaceholder(
-        document,
+placeholders.put(
         "{{address}}",
         request.getAddress()
 );
+
+placeholderService.replaceAllPlaceholders(
+        document,
+        placeholders
+);
+
 FileOutputStream fos = new FileOutputStream(outputFile);
 
 document.write(fos);
@@ -114,32 +124,6 @@ fis.close();
                 e.getMessage(),
                 null
         );
-
-    }
-
-}
-
-private void replacePlaceholder(XWPFDocument document,
-                                String placeholder,
-                                String replacement) {
-
-    for (XWPFParagraph paragraph : document.getParagraphs()) {
-
-        String text = paragraph.getText();
-
-        if (text.contains(placeholder)) {
-
-            text = text.replace(placeholder, replacement);
-
-            int runCount = paragraph.getRuns().size();
-
-            for (int i = runCount - 1; i >= 0; i--) {
-                paragraph.removeRun(i);
-            }
-
-            paragraph.createRun().setText(text);
-
-        }
 
     }
 
