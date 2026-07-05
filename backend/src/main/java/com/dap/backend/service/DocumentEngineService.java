@@ -66,7 +66,7 @@ private String generatedPath;
     try {
 
         String templateFile =
-        fileService.buildTemplatePath(
+        fileService.findTemplateFile(
                 request.getTemplateName()
         );
 
@@ -88,17 +88,17 @@ private String generatedPath;
 
         XWPFDocument document = new XWPFDocument(fis);
 
-       Map<String, String> placeholders = new HashMap<>();
+       Map<String,String> placeholders = new HashMap<>();
 
-placeholders.put(
-        "{{companyName}}",
-        request.getCompanyName()
-);
+for (Map.Entry<String,String> entry :
+        request.getPlaceholders().entrySet()) {
 
-placeholders.put(
-        "{{address}}",
-        request.getAddress()
-);
+    placeholders.put(
+            "{{" + entry.getKey() + "}}",
+            entry.getValue()
+    );
+
+}
 
 placeholderService.replaceAllPlaceholders(
         document,

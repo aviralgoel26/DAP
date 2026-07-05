@@ -2,7 +2,7 @@ package com.dap.backend.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.LocalDateTime;
@@ -33,11 +33,33 @@ public class FileService {
     /**
      * Returns the template path.
      */
-    public String buildTemplatePath(String templateName) {
+    public String findTemplateFile(String templateId) {
 
-        return templatePath + "/" + templateName + "/template.docx";
+    File folder = new File(templatePath, templateId);
+
+    if (!folder.exists() || !folder.isDirectory()) {
+        throw new RuntimeException(
+                "Template folder not found : " + templateId
+        );
+    }
+
+    File[] files = folder.listFiles(
+            (dir, name) ->
+                    name.endsWith(".docx") ||
+                    name.endsWith(".xlsx")
+    );
+
+    if (files == null || files.length == 0) {
+
+        throw new RuntimeException(
+                "No template found inside folder : " + templateId
+        );
 
     }
+
+    return files[0].getAbsolutePath();
+
+}
 
     /**
      * Returns the generated output path.
