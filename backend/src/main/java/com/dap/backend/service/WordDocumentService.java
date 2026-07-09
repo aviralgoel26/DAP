@@ -118,31 +118,50 @@ private void replaceFooters(
         XWPFParagraph paragraph,
         Map<String, String> placeholders) {
 
-    System.out.println("----- PARAGRAPH -----");
+    if (paragraph.getRuns().isEmpty()) {
+        return;
+    }
+
+    // Step 1: Join all runs
+    StringBuilder builder = new StringBuilder();
 
     for (XWPFRun run : paragraph.getRuns()) {
 
         String text = run.getText(0);
 
-        System.out.println("RUN = [" + text + "]");
-
-        if (text == null) {
-            continue;
+        if (text != null) {
+            builder.append(text);
         }
 
-        String updated =
-                placeholderEngine.replacePlaceholders(
-                        text,
-                        placeholders
-                );
-
-        if (!text.equals(updated)) {
-            run.setText(updated, 0);
-        }
-        
     }
 
-    
+    String original = builder.toString();
+
+    // Step 2: Replace placeholders
+    String updated =
+            placeholderEngine.replacePlaceholders(
+                    original,
+                    placeholders
+            );
+
+    // Step 3: Nothing changed
+    if (original.equals(updated)) {
+        return;
+    }
+
+    // Step 4: Keep formatting from first run
+    XWPFRun firstRun = paragraph.getRuns().get(0);
+
+    firstRun.setText("", 0);
+    firstRun.setText(updated, 0);
+
+    // Step 5: Clear remaining runs
+    for (int i = paragraph.getRuns().size() - 1; i > 0; i--) {
+
+        paragraph.removeRun(i);
+
+    }
+
 }
 
 }
