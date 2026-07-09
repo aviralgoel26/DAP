@@ -22,10 +22,20 @@ public class PlaceholderService {
     }
 
     private void replaceInParagraph(
-            XWPFParagraph paragraph,
-            Map<String, String> placeholders) {
+        XWPFParagraph paragraph,
+        Map<String, String> placeholders) {
 
-        String text = paragraph.getText();
+    if (paragraph.getRuns() == null) {
+        return;
+    }
+
+    paragraph.getRuns().forEach(run -> {
+
+        String text = run.getText(0);
+
+        if (text == null) {
+            return;
+        }
 
         boolean modified = false;
 
@@ -39,25 +49,17 @@ public class PlaceholderService {
                 );
 
                 modified = true;
-
             }
+        }
+
+        if (modified) {
+
+            run.setText(text, 0);
 
         }
 
-        if (!modified) {
-            return;
-        }
+    });
 
-        int runCount = paragraph.getRuns().size();
-
-        for (int i = runCount - 1; i >= 0; i--) {
-
-            paragraph.removeRun(i);
-
-        }
-
-        paragraph.createRun().setText(text);
-
-    }
+}
 
 }

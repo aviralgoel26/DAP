@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import com.dap.backend.service.WordDocumentService;
 
 
 @Service
@@ -27,6 +28,8 @@ public class DocumentEngineService {
 private FileService fileService;
 @Autowired
 private PlaceholderService placeholderService;
+@Autowired
+private WordDocumentService wordDocumentService;
 
     @Value("${template.storage.path}")
     private String templatePath;
@@ -100,9 +103,9 @@ for (Map.Entry<String,String> entry :
 
 }
 
-placeholderService.replaceAllPlaceholders(
+wordDocumentService.replaceInDocument(
         document,
-        placeholders
+        request.getPlaceholders()
 );
 
 FileOutputStream fos = new FileOutputStream(outputFile);
