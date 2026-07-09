@@ -5,6 +5,7 @@ import com.dap.backend.model.DocumentResponse;
 import com.dap.backend.service.DocumentEngineService;
 import com.dap.backend.service.FileService;
 import com.dap.backend.service.PlaceholderDiscoveryService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -13,6 +14,12 @@ import java.util.Set;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.bind.annotation.RequestPart;
+
+
 
 @RestController
 @RequestMapping("/api/documents")
@@ -32,11 +39,32 @@ private FileService fileService;
         return engineService.readDocument(templateName);
 
     }
-    @PostMapping("/generate")
+    @PostMapping(
+        value = "/generate",
+        consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+)
 public DocumentResponse generateDocument(
-        @RequestBody DocumentRequest request) {
 
-    return engineService.generateDocument(request);
+        @RequestPart("data") String json,
+
+        @RequestPart(value = "logo",
+                required = false)
+        MultipartFile logo
+
+) throws Exception {
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    DocumentRequest request =
+            mapper.readValue(
+                    json,
+                    DocumentRequest.class
+            );
+
+    return engineService.generateDocument(
+            request,
+            logo
+    );
 
 }
 @GetMapping("/{templateName}/placeholders")

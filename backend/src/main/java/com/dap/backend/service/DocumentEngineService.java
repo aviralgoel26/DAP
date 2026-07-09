@@ -5,6 +5,7 @@ import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dap.backend.model.DocumentRequest;
 import com.dap.backend.model.DocumentResponse;
@@ -64,8 +65,17 @@ private String generatedPath;
 
     }
 
-    public DocumentResponse generateDocument(DocumentRequest request) {
+    public DocumentResponse generateDocument(DocumentRequest request, MultipartFile logo) {
 
+        if (logo != null) {
+
+    System.out.println("Logo Name : "
+            + logo.getOriginalFilename());
+
+    System.out.println("Logo Size : "
+            + logo.getSize());
+
+}
     try {
 
         String templateFile =
@@ -105,7 +115,7 @@ for (Map.Entry<String,String> entry :
 
 wordDocumentService.replaceInDocument(
         document,
-        request.getPlaceholders()
+        request.getPlaceholders(),logo
 );
 
 FileOutputStream fos = new FileOutputStream(outputFile);
@@ -119,6 +129,7 @@ fis.close();
                 "Document generated successfully",
                 generatedFileName
         );
+        
 
 
     } catch (Exception e) {
@@ -129,6 +140,7 @@ fis.close();
         );
 
     }
+    
 
 }
 

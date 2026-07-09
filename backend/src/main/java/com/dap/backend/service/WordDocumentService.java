@@ -1,9 +1,10 @@
 package com.dap.backend.service;
 
+import org.apache.poi.util.Units;
 import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -17,42 +18,42 @@ public class WordDocumentService {
 
     public void replaceInDocument(
         XWPFDocument document,
-        Map<String,String> placeholders) {
+        Map<String,String> placeholders, MultipartFile logo) throws Exception {
 
-    replaceParagraphs(document, placeholders);
+    replaceParagraphs(document, placeholders, logo);
 
-    replaceTables(document, placeholders);
+    replaceTables(document, placeholders,logo);
 
-    replaceHeaders(document, placeholders);
+    replaceHeaders(document, placeholders, logo);
 
-    replaceFooters(document, placeholders);
+    replaceFooters(document, placeholders, logo);
 
 }
 private void replaceParagraphs(
         XWPFDocument document,
-        Map<String,String> placeholders) {
+        Map<String,String> placeholders, MultipartFile logo) throws Exception {
 
     for (XWPFParagraph paragraph : document.getParagraphs()) {
 
-        replaceParagraph(paragraph, placeholders);
+        replaceParagraph(paragraph, placeholders, logo);
 
     }
 
 }
 private void replaceTables(
         XWPFDocument document,
-        Map<String,String> placeholders) {
+        Map<String,String> placeholders, MultipartFile logo) throws Exception {
 
     for (XWPFTable table : document.getTables()) {
 
-        replaceTable(table, placeholders);
+        replaceTable(table, placeholders,logo);
 
     }
 
 }
 private void replaceTable(
         XWPFTable table,
-        Map<String,String> placeholders) {
+        Map<String,String> placeholders, MultipartFile logo) throws Exception {
 
     for (XWPFTableRow row : table.getRows()) {
 
@@ -63,7 +64,7 @@ private void replaceTable(
 
                 replaceParagraph(
                         paragraph,
-                        placeholders
+                        placeholders, logo
                 );
 
             }
@@ -75,7 +76,7 @@ private void replaceTable(
 }
 private void replaceHeaders(
         XWPFDocument document,
-        Map<String,String> placeholders) {
+        Map<String,String> placeholders, MultipartFile logo) throws Exception {
 
     for (XWPFHeader header :
             document.getHeaderList()) {
@@ -85,7 +86,7 @@ private void replaceHeaders(
 
             replaceParagraph(
                     paragraph,
-                    placeholders
+                    placeholders,logo
             );
 
         }
@@ -95,7 +96,7 @@ private void replaceHeaders(
 }
 private void replaceFooters(
         XWPFDocument document,
-        Map<String,String> placeholders) {
+        Map<String,String> placeholders, MultipartFile logo) throws Exception {
 
     for (XWPFFooter footer :
             document.getFooterList()) {
@@ -105,7 +106,7 @@ private void replaceFooters(
 
             replaceParagraph(
                     paragraph,
-                    placeholders
+                    placeholders,logo
             );
 
         }
@@ -116,11 +117,18 @@ private void replaceFooters(
 
     private void replaceParagraph(
         XWPFParagraph paragraph,
-        Map<String, String> placeholders) {
+        Map<String, String> placeholders, MultipartFile logo) throws Exception {
+            
 
     if (paragraph.getRuns().isEmpty()) {
         return;
     }
+    replaceLogo(paragraph, logo);
+
+    if (paragraph.getText().isEmpty() && paragraph.getRuns().size()> 0) {
+        return;
+    }
+
 
     // Step 1: Join all runs
     StringBuilder builder = new StringBuilder();
@@ -161,6 +169,69 @@ private void replaceFooters(
         paragraph.removeRun(i);
 
     }
+    
+
+}
+
+private void replaceLogo(
+        XWPFParagraph paragraph,
+        MultipartFile logo)
+        throws Exception {
+
+if (logo == null) {
+    System.out.println("Logo is NULL");
+    return;
+}
+
+if (!paragraph.getText().contains("{{logo}}")) {
+    return;
+}
+
+
+
+
+    // Remove all runs
+    XWPFRun firstRun = paragraph.getRuns().get(0);
+
+for (int i = paragraph.getRuns().size() - 1; i > 0; i--) {
+    paragraph.removeRun(i);
+}
+
+firstRun.setText("", 0);
+
+firstRun.addPicture(
+        logo.getInputStream(),
+        getPictureType(logo),
+        logo.getOriginalFilename(),
+        Units.toEMU(120),
+        Units.toEMU(120)
+);
+return;
+
+}
+private int getPictureType(
+        MultipartFile file) {
+
+    String name =
+            file.getOriginalFilename()
+                    .toLowerCase();
+
+    if (name.endsWith(".png")) {
+
+        return Document.PICTURE_TYPE_PNG;
+
+    }
+
+    if (name.endsWith(".jpg")
+            || name.endsWith(".jpeg")) {
+
+        return Document.PICTURE_TYPE_JPEG;
+
+    }
+
+    throw new RuntimeException(
+            "Unsupported image format."
+    );
 
 }
 
