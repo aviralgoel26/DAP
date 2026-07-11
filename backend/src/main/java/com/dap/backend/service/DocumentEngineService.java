@@ -28,8 +28,6 @@ public class DocumentEngineService {
     @Autowired
 private FileService fileService;
 @Autowired
-private PlaceholderService placeholderService;
-@Autowired
 private WordDocumentService wordDocumentService;
 @Autowired
 private ExcelDocumentService excelDocumentService;
@@ -124,7 +122,10 @@ else if (outputFile.endsWith(".xlsx")) {
 
     XSSFWorkbook workbook = new XSSFWorkbook(fis);
 
-    excelDocumentService.readWorkbook(workbook);
+    excelDocumentService.replacePlaceholders(
+        workbook,
+        request.getPlaceholders()
+);
 
     FileOutputStream fos = new FileOutputStream(outputFile);
 
