@@ -124,7 +124,8 @@ else if (outputFile.endsWith(".xlsx")) {
 
     excelDocumentService.replacePlaceholders(
         workbook,
-        request.getPlaceholders()
+        request.getPlaceholders(),
+        logo
 );
 
     FileOutputStream fos = new FileOutputStream(outputFile);
