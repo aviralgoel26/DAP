@@ -18,9 +18,9 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
 import com.dap.backend.service.WordDocumentService;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
 
 
 @Service
@@ -31,6 +31,8 @@ private FileService fileService;
 private PlaceholderService placeholderService;
 @Autowired
 private WordDocumentService wordDocumentService;
+@Autowired
+private ExcelDocumentService excelDocumentService;
 
     @Value("${template.storage.path}")
     private String templatePath;
@@ -85,7 +87,8 @@ private String generatedPath;
 
        String generatedFileName =
         fileService.generateFileName(
-                request.getTemplateName()
+                request.getTemplateName(),
+                templateFile
         );
 
         String outputFile =
@@ -99,31 +102,39 @@ private String generatedPath;
 );
         FileInputStream fis = new FileInputStream(outputFile);
 
-        XWPFDocument document = new XWPFDocument(fis);
+if (outputFile.endsWith(".docx")) {
 
-       Map<String,String> placeholders = new HashMap<>();
+    XWPFDocument document = new XWPFDocument(fis);
 
-for (Map.Entry<String,String> entry :
-        request.getPlaceholders().entrySet()) {
-
-    placeholders.put(
-            "{{" + entry.getKey() + "}}",
-            entry.getValue()
+    wordDocumentService.replaceInDocument(
+            document,
+            request.getPlaceholders(),
+            logo
     );
+
+    FileOutputStream fos = new FileOutputStream(outputFile);
+
+    document.write(fos);
+
+    fos.close();
+    document.close();
+
+}
+else if (outputFile.endsWith(".xlsx")) {
+
+    XSSFWorkbook workbook = new XSSFWorkbook(fis);
+
+    excelDocumentService.readWorkbook(workbook);
+
+    FileOutputStream fos = new FileOutputStream(outputFile);
+
+    workbook.write(fos);
+
+    fos.close();
+    workbook.close();
 
 }
 
-wordDocumentService.replaceInDocument(
-        document,
-        request.getPlaceholders(),logo
-);
-
-FileOutputStream fos = new FileOutputStream(outputFile);
-
-document.write(fos);
-
-fos.close();
-document.close();
 fis.close();
         return new DocumentResponse(
                 "Document generated successfully",

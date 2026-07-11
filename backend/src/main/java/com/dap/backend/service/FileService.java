@@ -22,13 +22,23 @@ public class FileService {
      * Example:
      * MRM_20260705_153045.docx
      */
-    public String generateFileName(String templateName) {
+    public String generateFileName(
+        String templateName,
+        String templateFile) {
 
-        String timestamp = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+    String timestamp = LocalDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
 
-        return templateName + "_" + timestamp + ".docx";
-    }
+    String extension =
+            templateFile.substring(
+                    templateFile.lastIndexOf(".")
+            );
+
+    return templateName + "_" +
+            timestamp +
+            extension;
+
+}
 
     /**
      * Returns the template path.
