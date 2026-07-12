@@ -1,8 +1,8 @@
 package com.dap.backend.controller;
 
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.Set;
+import java.nio.file.Paths;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.slf4j.Logger;
@@ -28,6 +28,10 @@ import jakarta.validation.ConstraintViolation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 /**
  * REST controller for single-document generation and placeholder discovery.
  */
@@ -142,4 +146,45 @@ if (!violations.isEmpty()) {
             return placeholderDiscoveryService.discoverPlaceholders(document);
         }
     }
+
+    @GetMapping("/download/{fileName}")
+public ResponseEntity<InputStreamResource> downloadDocument(
+        @PathVariable String fileName) throws IOException {
+String path =
+        Paths.get(
+                fileService.getGeneratedDirectory(),
+                fileName
+        ).toString();
+
+    File file = new File(path);
+
+    if (!file.exists()) {
+
+        throw new IllegalArgumentException(
+                "Generated file not found."
+        );
+
+    }
+
+    InputStreamResource resource =
+            new InputStreamResource(
+                    new FileInputStream(file)
+            );
+
+    return ResponseEntity.ok()
+
+            .header(
+                    HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + file.getName() + "\""
+            )
+
+            .contentLength(file.length())
+
+            .contentType(
+                    MediaType.APPLICATION_OCTET_STREAM
+            )
+
+            .body(resource);
+
+}
 }

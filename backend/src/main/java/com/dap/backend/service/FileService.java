@@ -101,4 +101,12 @@ public class FileService {
         logger.debug("Copying template from '{}' to '{}'", source, destination);
         Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);
     }
+
+
+
+    public String getGeneratedDirectory() {
+
+    return generatedPath;
+
+}
 }

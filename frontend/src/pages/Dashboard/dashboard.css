@@ -1,0 +1,31 @@
+.stats-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,1fr);
+
+    gap:24px;
+
+}
+
+.stat-number{
+
+    font-size:40px;
+
+    font-weight:700;
+
+    color:var(--primary);
+
+    margin-bottom:8px;
+
+}
+
+.quick-actions{
+
+    display:flex;
+
+    gap:16px;
+
+    flex-wrap:wrap;
+
+}

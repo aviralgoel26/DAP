@@ -1,0 +1,27 @@
+.heading-xl {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.heading-lg {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.heading-md {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.body {
+  font-size: 1rem;
+}
+
+.caption {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.small {
+  font-size: 0.75rem;
+}
