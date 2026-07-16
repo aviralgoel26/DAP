@@ -9,7 +9,7 @@ import PlaceholderForm from "../../components/generate/PlaceholderForm";
 import LogoUpload from "../../components/generate/LogoUpload";
 import DocumentSummary from "../../components/generate/DocumentSummary";
 import { useEffect, useState } from "react";
-import {generateDocument, downloadDocument} from "../../services/documentService";
+import {generateDocument} from "../../services/documentService";
 
 import {
     getTemplates,
@@ -114,10 +114,6 @@ const filename =
 window.location.href =
     `http://localhost:5050/api/documents/download/${filename}`;
 
-const url =
-    window.URL.createObjectURL(
-        new Blob([download.data])
-    );
 
 const link =
     document.createElement("a");

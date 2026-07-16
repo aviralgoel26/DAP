@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
+import java.io.File;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,4 +47,24 @@ public class TemplateUploadService {
         logger.info("Template '{}' uploaded to: {}", templateId, destination);
         return destination.toString();
     }
+
+    public void deleteTemplate(String templateId) throws IOException {
+
+    Path tempPath =
+            Paths.get(templatePath, templateId);
+
+    if (!Files.exists(tempPath)) {
+
+        throw new IllegalArgumentException(
+                "Template not found."
+        );
+
+    }
+
+    Files.walk(tempPath)
+            .sorted(Comparator.reverseOrder())
+            .map(Path::toFile)
+            .forEach(File::delete);
+
+}
 }

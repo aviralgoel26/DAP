@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.dap.backend.model.TemplateInfo;
 import com.dap.backend.service.TemplateService;
@@ -75,4 +77,21 @@ public class TemplateController {
         logger.info("Uploading template '{}' (file: {})", templateId, file.getOriginalFilename());
         return templateUploadService.uploadTemplate(templateId, file);
     }
+
+    @Operation(
+    summary = "Delete Template",
+    description = "Deletes a template and its files."
+)
+@DeleteMapping("/{templateId}")
+public String deleteTemplate(
+        @PathVariable String templateId
+) throws IOException {
+
+    logger.info("Deleting template {}", templateId);
+
+    templateUploadService.deleteTemplate(templateId);
+
+    return "Template deleted successfully.";
+
+}
 }

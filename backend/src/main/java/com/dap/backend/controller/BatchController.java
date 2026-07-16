@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.dap.backend.model.BatchRequest;
 import com.dap.backend.model.BatchResponse;
 import com.dap.backend.service.BatchGenerationService;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 /**
  * REST controller for batch document generation and ZIP download operations.
@@ -40,6 +40,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class BatchController {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchController.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private BatchGenerationService batchGenerationService;
@@ -58,14 +59,37 @@ public class BatchController {
     summary="Generate Batch",
     description="Generates multiple documents and returns a ZIP file."
 )
-    @PostMapping("/generate")
-    public BatchResponse generateBatch(
-            @RequestPart("request") BatchRequest request,
-            @RequestPart(value = "logo", required = false) MultipartFile logo) {
+    @PostMapping(
+        value = "/generate",
+        consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+)
+public BatchResponse generateBatch(
 
-        logger.info("Batch generation requested for {} template(s)", request.getTemplates().size());
-        return batchGenerationService.generateBatch(request, logo);
-    }
+        @RequestPart("data") String json,
+
+        @RequestPart(
+                value = "logo",
+                required = false
+        ) MultipartFile logo
+
+) throws Exception {
+
+    BatchRequest request =
+            objectMapper.readValue(
+                    json,
+                    BatchRequest.class
+            );
+
+    logger.info(
+            "Batch generation requested for {} template(s)",
+            request.getTemplates().size()
+    );
+
+    return batchGenerationService.generateBatch(
+            request,
+            logo
+    );
+}
 
     /**
      * Downloads a previously generated ZIP file by name.

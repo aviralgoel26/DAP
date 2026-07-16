@@ -1,0 +1,26 @@
+.template-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(auto-fill,minmax(280px,1fr));
+
+    gap:24px;
+
+    margin-top:24px;
+
+}
+
+.template-upload{
+
+    margin-top:24px;
+
+    margin-bottom:24px;
+
+}
+
+.search-bar{
+
+    margin-bottom:24px;
+
+}

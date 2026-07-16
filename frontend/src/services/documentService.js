@@ -31,3 +31,32 @@ export const generateDocument = async (formData) => {
     return response.data;
 
 };
+export const generateBatch = async (formData) => {
+
+    const response = await API.post(
+        "/batch/generate",
+        formData,
+        {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            }
+        }
+    );
+
+    return response.data;
+
+};
+
+export const downloadBatch = (filename) => {
+
+    return API.get(
+
+        `/batch/download/${filename}`,
+
+        {
+            responseType: "blob"
+        }
+
+    );
+
+};
