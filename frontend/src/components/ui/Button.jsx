@@ -20,7 +20,6 @@ function Button({
         "btn",
         `btn-${variant}`,
         `btn-${size}`,
-        loading && "btn-loading",
         (disabled || loading) && "btn-disabled",
         className
       )}
@@ -28,13 +27,11 @@ function Button({
       onClick={onClick}
     >
       {loading ? (
-        <Loader2 size={18} className="btn-spinner" />
+        <Loader2 size={16} className="btn-spinner" />
       ) : (
         <>
           {leftIcon && <span className="btn-icon">{leftIcon}</span>}
-
           <span>{children}</span>
-
           {rightIcon && <span className="btn-icon">{rightIcon}</span>}
         </>
       )}

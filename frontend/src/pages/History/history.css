@@ -1,0 +1,15 @@
+.history-toolbar {
+  margin-bottom: 20px;
+}
+
+.history-toolbar .search-box {
+  max-width: 480px;
+}
+
+.history-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}

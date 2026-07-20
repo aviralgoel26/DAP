@@ -1,57 +1,49 @@
 import Card from "../ui/Card";
 
-function DocumentSummary() {
+function DocumentSummary({ template, placeholders, logo }) {
+  return (
+    <Card title="Summary">
+      <div className="summary-list">
+        
+        <div className="summary-item">
+          <span className="summary-label">Template</span>
+          {template ? (
+            <span className="summary-value">{template}</span>
+          ) : (
+            <span className="summary-value-empty">Not selected</span>
+          )}
+        </div>
 
-    return (
-
-        <Card>
-
-            <h2>Live Summary</h2>
-
-            <div className="summary-item">
-
-                <span>Template</span>
-
-                <strong>MRM</strong>
-
+        <div className="summary-item">
+          <span className="summary-label">Detected Placeholders</span>
+          {placeholders && placeholders.length > 0 ? (
+            <div className="summary-tags">
+              {placeholders.map(p => (
+                <span key={p} className="summary-tag">{p}</span>
+              ))}
             </div>
+          ) : (
+            <span className="summary-value-empty">None</span>
+          )}
+        </div>
 
-            <div className="summary-item">
+        <div className="summary-item">
+          <span className="summary-label">Logo</span>
+          {logo ? (
+            <span className="summary-value" style={{ color: "var(--success)" }}>Ready</span>
+          ) : (
+            <span className="summary-value-empty">Not uploaded</span>
+          )}
+        </div>
 
-                <span>Detected Placeholders</span>
+        <div className="summary-item">
+          <span className="summary-label">Output format</span>
+          <span className="summary-value">DOCX / XLSX</span>
+        </div>
 
-                <ul>
-
-                    <li>companyName</li>
-
-                    <li>address</li>
-
-                    <li>logo</li>
-
-                </ul>
-
-            </div>
-
-            <div className="summary-item">
-
-                <span>Logo</span>
-
-                <strong>Not Uploaded</strong>
-
-            </div>
-
-            <div className="summary-item">
-
-                <span>Output</span>
-
-                <strong>DOCX</strong>
-
-            </div>
-
-        </Card>
-
-    );
-
+      </div>
+    </Card>
+  );
 }
 
 export default DocumentSummary;
