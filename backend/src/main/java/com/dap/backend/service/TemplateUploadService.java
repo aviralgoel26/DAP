@@ -21,8 +21,8 @@ import com.dap.backend.repository.TemplateRepository;
 /**
  * Service for handling template file uploads and deletions.
  * <p>
- * Filesystem operations are unchanged. MongoDB metadata is saved/removed
- * alongside each filesystem operation to keep both stores in sync.
+ * Actual template binaries are stored in MongoDB GridFS via {@link TemplateFileStorageService},
+ * eliminating dependency on Render's ephemeral filesystem.
  * </p>
  */
 @Service
@@ -34,80 +34,131 @@ public class TemplateUploadService {
     private String templatePath;
 
     private final TemplateRepository templateRepository;
+    private final TemplateFileStorageService templateFileStorageService;
 
-    public TemplateUploadService(TemplateRepository templateRepository) {
+    public TemplateUploadService(TemplateRepository templateRepository,
+                                 TemplateFileStorageService templateFileStorageService) {
         this.templateRepository = templateRepository;
+        this.templateFileStorageService = templateFileStorageService;
     }
 
     /**
-     * Saves an uploaded template file to the template storage directory under the given ID,
-     * then persists metadata to MongoDB.
+     * Saves an uploaded template file to MongoDB GridFS, then persists metadata to MongoDB.
      * <p>
-     * If a template with this ID already exists in MongoDB, the metadata is overwritten
-     * (upsert) so that re-uploads stay consistent.
+     * If saving metadata fails, the newly uploaded GridFS file is cleaned up.
+     * If replacing an existing template, the old GridFS file is deleted to avoid orphaned binaries.
      * </p>
      *
-     * @param templateId the unique identifier used to name the template subdirectory
+     * @param templateId the unique identifier for the template
      * @param file       the uploaded template file (.docx or .xlsx)
-     * @return the absolute path of the saved file as a string
-     * @throws IOException if directory creation or file writing fails
+     * @return confirmation message string
+     * @throws IOException if file reading fails
      */
     public String uploadTemplate(String templateId, MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty() || file.getOriginalFilename() == null) {
+            throw new IllegalArgumentException("Template file cannot be empty.");
+        }
 
-        Path folder = Paths.get(templatePath, templateId);
-        Files.createDirectories(folder);
-
-        Path destination = folder.resolve(file.getOriginalFilename());
-        Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
-
-        logger.info("Template '{}' uploaded to: {}", templateId, destination);
-
-        // Persist metadata to MongoDB (upsert — same id overwrites on re-upload)
         String fileType = resolveFileType(file.getOriginalFilename());
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            contentType = fileType.equals("XLSX")
+                    ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        }
 
+        // Check if an existing template with this ID has an old GridFS file
+        String oldGridFsFileId = templateRepository.findById(templateId)
+                .map(TemplateDocument::getGridFsFileId)
+                .orElse(null);
+
+        // 1. Store binary in GridFS
+        String gridFsFileId = templateFileStorageService.storeTemplate(
+                file.getInputStream(),
+                file.getOriginalFilename(),
+                contentType,
+                templateId
+        );
+
+        // 2. Persist metadata in MongoDB
         TemplateDocument doc = TemplateDocument.builder()
                 .id(templateId)
                 .displayName(templateId)
                 .fileType(fileType)
                 .originalFilename(file.getOriginalFilename())
-                .filePath(folder.toAbsolutePath().toString())
+                .gridFsFileId(gridFsFileId)
                 .uploadedAt(Instant.now())
                 .build();
 
-        templateRepository.save(doc);
-        logger.info("Template '{}' metadata saved to MongoDB", templateId);
+        try {
+            templateRepository.save(doc);
+            logger.info("Template '{}' metadata saved to MongoDB with GridFS ID: {}", templateId, gridFsFileId);
+        } catch (Exception e) {
+            // Roll back newly uploaded GridFS file if metadata persistence fails
+            logger.error("Failed to save TemplateDocument for '{}', cleaning up GridFS file '{}': {}",
+                    templateId, gridFsFileId, e.getMessage());
+            templateFileStorageService.deleteTemplate(gridFsFileId);
+            throw e;
+        }
 
-        return destination.toString();
+        // 3. Delete old GridFS file if replacing an existing template
+        if (oldGridFsFileId != null && !oldGridFsFileId.equals(gridFsFileId)) {
+            templateFileStorageService.deleteTemplate(oldGridFsFileId);
+            logger.info("Cleaned up previous GridFS file '{}' for template '{}'", oldGridFsFileId, templateId);
+        }
+
+        // 4. Best-effort local filesystem cache (for development/local inspection)
+        try {
+            Path folder = Paths.get(templatePath, templateId);
+            Files.createDirectories(folder);
+            Path destination = folder.resolve(file.getOriginalFilename());
+            Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception e) {
+            logger.debug("Local disk cache skipped for template '{}': {}", templateId, e.getMessage());
+        }
+
+        return "Template uploaded successfully.";
     }
 
     /**
-     * Deletes a template: removes the MongoDB metadata record first, then deletes
-     * the filesystem directory. Order is intentional — if the FS delete fails,
-     * the MongoDB record is already removed so the template won't appear in listings.
+     * Deletes a template: removes the GridFS binary file and the MongoDB metadata record.
+     * Also performs best-effort cleanup of any local directory if present.
      *
      * @param templateId the identifier of the template to delete
-     * @throws IOException              if the filesystem directory cannot be deleted
-     * @throws IllegalArgumentException if the template folder does not exist on disk
+     * @throws IllegalArgumentException if the template does not exist
      */
     public void deleteTemplate(String templateId) throws IOException {
-
+        TemplateDocument doc = templateRepository.findById(templateId).orElse(null);
         Path tempPath = Paths.get(templatePath, templateId);
 
-        if (!Files.exists(tempPath)) {
-            throw new IllegalArgumentException("Template not found.");
+        if (doc == null && !Files.exists(tempPath)) {
+            throw new IllegalArgumentException("Template not found: " + templateId);
         }
 
-        // Remove from MongoDB first
-        templateRepository.deleteById(templateId);
-        logger.info("Template '{}' metadata removed from MongoDB", templateId);
+        // 1. Delete binary from GridFS if present
+        if (doc != null && doc.getGridFsFileId() != null) {
+            templateFileStorageService.deleteTemplate(doc.getGridFsFileId());
+            logger.info("Template '{}' binary deleted from GridFS ({})", templateId, doc.getGridFsFileId());
+        }
 
-        // Then remove from filesystem
-        Files.walk(tempPath)
-                .sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .forEach(File::delete);
+        // 2. Delete metadata from MongoDB
+        if (doc != null) {
+            templateRepository.deleteById(templateId);
+            logger.info("Template '{}' metadata removed from MongoDB", templateId);
+        }
 
-        logger.info("Template '{}' directory deleted from filesystem", templateId);
+        // 3. Best-effort local directory cleanup
+        if (Files.exists(tempPath)) {
+            try {
+                Files.walk(tempPath)
+                        .sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(File::delete);
+                logger.info("Template '{}' directory deleted from local filesystem", templateId);
+            } catch (Exception e) {
+                logger.warn("Could not delete local filesystem directory for '{}': {}", templateId, e.getMessage());
+            }
+        }
     }
 
     /**

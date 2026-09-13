@@ -22,9 +22,12 @@ import com.dap.backend.model.DocumentRequest;
 import com.dap.backend.model.DocumentResponse;
 import com.dap.backend.repository.GenerationHistoryDocument;
 import com.dap.backend.repository.GenerationHistoryRepository;
+import com.dap.backend.repository.TemplateDocument;
+import com.dap.backend.repository.TemplateRepository;
 import com.dap.backend.service.DocumentEngineService;
 import com.dap.backend.service.FileService;
 import com.dap.backend.service.PlaceholderDiscoveryService;
+import com.dap.backend.service.TemplateFileStorageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
@@ -66,6 +69,12 @@ public class DocumentController {
 
     @Autowired
     private GenerationHistoryRepository historyRepository;
+
+    @Autowired
+    private TemplateRepository templateRepository;
+
+    @Autowired
+    private TemplateFileStorageService templateFileStorageService;
 
     /**
      * Reads the raw text content of a Word template.
@@ -147,47 +156,36 @@ if (!violations.isEmpty()) {
      * @throws IOException if the template file cannot be read
      */
     
+    @Operation(
+            summary = "Discover Placeholders",
+            description = "Discovers all placeholder keys present in a Word or Excel template from MongoDB GridFS."
+    )
     @GetMapping("/{templateName}/placeholders")
-public Set<String> discoverPlaceholders(
-        @PathVariable String templateName
-) throws IOException {
+    public Set<String> discoverPlaceholders(
+            @PathVariable String templateName
+    ) throws IOException {
 
-    logger.info("Discovering placeholders for template: {}", templateName);
+        logger.info("Discovering placeholders for template: {}", templateName);
 
-    String path = fileService.findTemplateFile(templateName);
+        TemplateDocument doc = templateRepository.findById(templateName)
+                .orElseThrow(() -> new IllegalArgumentException("Template not found: " + templateName));
 
-    if (path.toLowerCase().endsWith(".docx")) {
-
-        try (
-                FileInputStream fis = new FileInputStream(path);
-                XWPFDocument document = new XWPFDocument(fis)
-        ) {
-
-            return placeholderDiscoveryService
-                    .discoverPlaceholders(document);
-
+        if (doc.getGridFsFileId() == null) {
+            throw new IllegalArgumentException("Template binary not found in storage for: " + templateName);
         }
 
-    }
-
-    if (path.toLowerCase().endsWith(".xlsx")) {
-
-        try (
-                FileInputStream fis = new FileInputStream(path);
-                XSSFWorkbook workbook = new XSSFWorkbook(fis)
-        ) {
-
-            return placeholderDiscoveryService
-                    .discoverPlaceholders(workbook);
-
+        try (InputStream is = templateFileStorageService.getTemplateInputStream(doc.getGridFsFileId())) {
+            if ("DOCX".equalsIgnoreCase(doc.getFileType())) {
+                XWPFDocument document = new XWPFDocument(is);
+                return placeholderDiscoveryService.discoverPlaceholders(document);
+            } else if ("XLSX".equalsIgnoreCase(doc.getFileType())) {
+                XSSFWorkbook workbook = new XSSFWorkbook(is);
+                return placeholderDiscoveryService.discoverPlaceholders(workbook);
+            }
         }
 
+        throw new IllegalArgumentException("Unsupported template type: " + doc.getFileType());
     }
-
-    throw new IllegalArgumentException(
-            "Unsupported template type: " + path
-    );
-}
 
     @GetMapping("/download/{fileName}")
 public ResponseEntity<InputStreamResource> downloadDocument(

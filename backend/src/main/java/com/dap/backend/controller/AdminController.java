@@ -53,18 +53,15 @@ public class AdminController {
      * @return JSON with status and count of newly created records
      */
     @Operation(
-            summary = "Sync Templates to MongoDB",
-            description = "One-time idempotent import of filesystem templates into MongoDB. Safe to run multiple times."
+            summary = "Sync Templates to MongoDB & GridFS",
+            description = "One-time idempotent import of filesystem templates into MongoDB metadata and GridFS binaries. Safe to run multiple times."
     )
     @PostMapping("/sync-templates")
     public Map<String, Object> syncTemplates() {
-        logger.info("Admin: template filesystem → MongoDB sync requested");
-        int created = templateSyncService.syncTemplates();
-        logger.info("Admin: template sync complete — {} new record(s) created", created);
-        return Map.of(
-                "status", "ok",
-                "newRecordsCreated", created
-        );
+        logger.info("Admin: template filesystem → MongoDB & GridFS sync requested");
+        Map<String, Object> result = templateSyncService.syncTemplates();
+        logger.info("Admin: template sync complete — {}", result);
+        return result;
     }
 
     /**

@@ -1,13 +1,10 @@
 package com.dap.backend.service;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.io.InputStream;
 
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -15,17 +12,21 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.dap.backend.model.DocumentRequest;
 import com.dap.backend.model.DocumentResponse;
+import com.dap.backend.repository.TemplateDocument;
+import com.dap.backend.repository.TemplateRepository;
 
 /**
- * Core document generation engine. Routes generation to the appropriate
- * sub-service ({@link WordDocumentService} or {@link ExcelDocumentService})
- * based on the template file extension.
+ * Core document generation engine.
+ * <p>
+ * Retrieves source template binaries from MongoDB GridFS via {@link TemplateFileStorageService},
+ * streams them into the temporary generated directory, and executes placeholder replacement
+ * using {@link WordDocumentService} or {@link ExcelDocumentService}.
+ * </p>
  */
 @Service
 public class DocumentEngineService {
@@ -41,31 +42,37 @@ public class DocumentEngineService {
     @Autowired
     private ExcelDocumentService excelDocumentService;
 
-    @Value("${template.storage.path}")
-    private String templatePath;
+    @Autowired
+    private TemplateRepository templateRepository;
 
-    @Value("${generated.storage.path}")
-    private String generatedPath;
+    @Autowired
+    private TemplateFileStorageService templateFileStorageService;
 
     /**
-     * Reads and returns the plain text content of a Word (.docx) template.
+     * Reads and returns the plain text content of a Word (.docx) template directly from MongoDB GridFS.
      *
-     * @param templateName the name of the template folder
+     * @param templateName the name of the template
      * @return the concatenated text of all paragraphs, or an error message string on failure
      */
     public String readDocument(String templateName) {
-
-        String filePath = templatePath + "/" + templateName + "/template.docx";
         StringBuilder content = new StringBuilder();
 
-        try (FileInputStream fis = new FileInputStream(filePath);
-             XWPFDocument document = new XWPFDocument(fis)) {
+        try {
+            TemplateDocument doc = templateRepository.findById(templateName)
+                    .orElseThrow(() -> new IllegalArgumentException("Template not found: " + templateName));
 
-            for (XWPFParagraph paragraph : document.getParagraphs()) {
-                content.append(paragraph.getText()).append("\n");
+            if (doc.getGridFsFileId() == null) {
+                return "Error : Template binary not found in storage: " + templateName;
             }
 
-        } catch (IOException e) {
+            try (InputStream is = templateFileStorageService.getTemplateInputStream(doc.getGridFsFileId());
+                 XWPFDocument document = new XWPFDocument(is)) {
+
+                for (XWPFParagraph paragraph : document.getParagraphs()) {
+                    content.append(paragraph.getText()).append("\n");
+                }
+            }
+        } catch (Exception e) {
             logger.error("Failed to read document '{}': {}", templateName, e.getMessage(), e);
             return "Error : " + e.getMessage();
         }
@@ -74,7 +81,7 @@ public class DocumentEngineService {
     }
 
     /**
-     * Generates a document by copying the template, replacing placeholders,
+     * Generates a document by streaming the template from MongoDB GridFS, replacing placeholders,
      * and optionally embedding a logo. Supports both .docx and .xlsx templates.
      *
      * @param request the document request containing the template name and placeholder values
@@ -90,15 +97,36 @@ public class DocumentEngineService {
         }
 
         try {
-            String templateFile = fileService.findTemplateFile(request.getTemplateName());
-            String generatedFileName = fileService.generateFileName(request.getTemplateName(), templateFile);
+            TemplateDocument doc = templateRepository.findById(request.getTemplateName())
+                    .orElseThrow(() -> new IllegalArgumentException("Template not found: " + request.getTemplateName()));
+
+            if (doc.getGridFsFileId() == null) {
+                throw new IllegalArgumentException("Template binary not found in storage for: " + request.getTemplateName());
+            }
+
+            String originalFilename = doc.getOriginalFilename() != null
+                    ? doc.getOriginalFilename()
+                    : (doc.getId() + "." + doc.getFileType().toLowerCase());
+
+            String generatedFileName = fileService.generateFileName(request.getTemplateName(), originalFilename);
             String outputFile = fileService.buildOutputPath(generatedFileName);
 
-            fileService.copyTemplate(templateFile, outputFile);
+            // Ensure generated storage directory exists
+            File genDir = new File(fileService.getGeneratedDirectory());
+            if (!genDir.exists()) {
+                genDir.mkdirs();
+            }
 
-            if (outputFile.endsWith(".docx")) {
+            // Stream template binary from GridFS directly into generated output file
+            try (InputStream is = templateFileStorageService.getTemplateInputStream(doc.getGridFsFileId());
+                 FileOutputStream fos = new FileOutputStream(outputFile)) {
+                is.transferTo(fos);
+            }
+
+            // Process document using existing POI services
+            if (outputFile.toLowerCase().endsWith(".docx")) {
                 processWordDocument(outputFile, request, logo);
-            } else if (outputFile.endsWith(".xlsx")) {
+            } else if (outputFile.toLowerCase().endsWith(".xlsx")) {
                 processExcelDocument(outputFile, request, logo);
             }
 

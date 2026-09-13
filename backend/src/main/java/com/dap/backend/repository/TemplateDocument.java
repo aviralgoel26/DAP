@@ -40,6 +40,9 @@ public class TemplateDocument {
     /** Absolute filesystem path to the template folder (Render-safe: from @Value). */
     private String filePath;
 
+    /** Hex ObjectId string pointing to the actual binary file in MongoDB GridFS. */
+    private String gridFsFileId;
+
     /** UTC timestamp when this template was uploaded or first synced. */
     private Instant uploadedAt;
 }
