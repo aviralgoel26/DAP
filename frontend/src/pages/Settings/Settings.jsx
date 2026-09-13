@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import PageHeader from "../../components/ui/PageHeader";
 import SettingsForm from "../../components/settings/SettingsForm";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
@@ -21,10 +22,14 @@ function Settings() {
 
   async function loadSettings() {
     try {
+      setLoading(true);
       const data = await getSettings();
-      setSettings(data);
+      // Only update if data is present to prevent wiping defaults on error
+      if (data) {
+        setSettings(data);
+      }
     } catch (e) {
-      console.error(e);
+      toast.error("Failed to load settings. Using defaults.");
     } finally {
       setLoading(false);
     }
@@ -35,10 +40,10 @@ function Settings() {
       setSaving(true);
       const updated = await saveSettings(settings);
       setSettings(updated);
-      alert("Settings saved successfully.");
+      toast.success("Settings saved successfully.");
     } catch (e) {
-      console.error(e);
-      alert("Failed to save settings.");
+      const msg = e?.response?.data?.message || "Failed to save settings.";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }

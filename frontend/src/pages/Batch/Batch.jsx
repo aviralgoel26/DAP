@@ -1,6 +1,7 @@
 import "./batch.css";
 import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
+import { toast } from "sonner";
 
 import PageHeader from "../../components/ui/PageHeader";
 import Card from "../../components/ui/Card";
@@ -25,6 +26,8 @@ function Batch() {
   const [values, setValues] = useState({});
   const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [loadingPlaceholders, setLoadingPlaceholders] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -32,35 +35,49 @@ function Batch() {
 
   async function loadTemplates() {
     try {
+      setLoadingTemplates(true);
       const response = await getTemplates();
-      setTemplates(response.data);
+      setTemplates(Array.isArray(response.data) ? response.data : []);
     } catch (e) {
-      console.error(e);
+      toast.error("Failed to load templates.");
+      setTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
     }
   }
 
   useEffect(() => {
     if (selectedTemplates.length === 0) {
       setPlaceholders([]);
+      setValues({});
       return;
     }
-    loadPlaceholders();
+    loadPlaceholders(selectedTemplates);
   }, [selectedTemplates]);
 
-  async function loadPlaceholders() {
+  async function loadPlaceholders(templateNames) {
     try {
+      setLoadingPlaceholders(true);
       const all = new Set();
       const responses = await Promise.all(
-        selectedTemplates.map(template => getPlaceholders(template))
+        templateNames.map(template => getPlaceholders(template).catch(e => {
+            console.error(`Failed to load placeholders for ${template}`, e);
+            return { data: [] };
+        }))
       );
 
       responses.forEach(response => {
-        response.data.forEach(item => all.add(item));
+        if (Array.isArray(response.data)) {
+            response.data.forEach(item => all.add(item));
+        }
       });
 
       setPlaceholders([...all]);
     } catch (e) {
-      console.error(e);
+      toast.error("Failed to load placeholders.");
+      setPlaceholders([]);
+    } finally {
+      setLoadingPlaceholders(false);
     }
   }
 
@@ -85,6 +102,9 @@ function Batch() {
 
       const response = await generateBatch(formData);
       const filename = response.zipFile;
+      
+      toast.success("Batch generated! Starting download...");
+      
       const download = await downloadBatch(filename);
 
       const url = window.URL.createObjectURL(new Blob([download.data]));
@@ -96,8 +116,8 @@ function Batch() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (e) {
-      console.error(e);
-      alert("Failed to generate batch");
+      const msg = e?.response?.data?.message || "Failed to generate batch";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -118,18 +138,26 @@ function Batch() {
                 templates={templates}
                 selected={selectedTemplates}
                 onChange={setSelectedTemplates}
+                disabled={loadingTemplates || loading}
               />
 
-              {selectedTemplates.length > 0 && placeholders.length > 0 && (
+              {loadingPlaceholders && (
+                <div style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
+                  Loading placeholders...
+                </div>
+              )}
+
+              {selectedTemplates.length > 0 && !loadingPlaceholders && placeholders.length > 0 && (
                 <PlaceholderForm
                   placeholders={placeholders}
                   values={values}
                   onChange={updateValue}
+                  disabled={loading}
                 />
               )}
 
-              {selectedTemplates.length > 0 && (
-                <LogoUpload logo={logo} onChange={setLogo} />
+              {selectedTemplates.length > 0 && !loadingPlaceholders && (
+                <LogoUpload logo={logo} onChange={setLogo} disabled={loading} />
               )}
             </div>
 
@@ -137,7 +165,7 @@ function Batch() {
               <Button
                 size="lg"
                 loading={loading}
-                disabled={selectedTemplates.length === 0}
+                disabled={selectedTemplates.length === 0 || loadingPlaceholders}
                 onClick={handleGenerate}
                 rightIcon={<Play size={16} fill="currentColor" />}
               >

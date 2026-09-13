@@ -1,0 +1,22 @@
+# Generated document output
+/generated/
+
+# Local uploaded/runtime templates
+# Keep this commented for now because the deployed app may need seed templates.
+# /templates/
+
+# Environment variables / secrets
+.env
+*.env
+
+# IDE / OS files
+.idea/
+.vscode/
+*.iml
+
+# Node
+node_modules/
+frontend/dist/
+
+# Java / Maven
+backend/target/

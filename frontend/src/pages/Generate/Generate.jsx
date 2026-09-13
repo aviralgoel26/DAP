@@ -1,6 +1,7 @@
 import "./generate.css";
 import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
+import { toast } from "sonner";
 
 import PageHeader from "../../components/ui/PageHeader";
 import Card from "../../components/ui/Card";
@@ -14,7 +15,8 @@ import DocumentSummary from "../../components/generate/DocumentSummary";
 import {
   getTemplates,
   getPlaceholders,
-  generateDocument
+  generateDocument,
+  downloadDocument
 } from "../../services/documentService";
 
 function Generate() {
@@ -24,6 +26,8 @@ function Generate() {
   const [values, setValues] = useState({});
   const [logo, setLogo] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingPlaceholders, setLoadingPlaceholders] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   useEffect(() => {
     loadTemplates();
@@ -31,10 +35,14 @@ function Generate() {
 
   async function loadTemplates() {
     try {
+      setLoadingTemplates(true);
       const response = await getTemplates();
-      setTemplates(response.data);
+      setTemplates(Array.isArray(response.data) ? response.data : []);
     } catch (e) {
-      console.error(e);
+      toast.error("Failed to load templates.");
+      setTemplates([]);
+    } finally {
+      setLoadingTemplates(false);
     }
   }
 
@@ -42,22 +50,29 @@ function Generate() {
     if (!selectedTemplate) {
       setPlaceholders([]);
       setValues({});
+      setLogo(null);
       return;
     }
-    loadPlaceholders();
+    loadPlaceholders(selectedTemplate);
   }, [selectedTemplate]);
 
-  async function loadPlaceholders() {
+  async function loadPlaceholders(templateName) {
     try {
-      const response = await getPlaceholders(selectedTemplate);
-      setPlaceholders(response.data);
+      setLoadingPlaceholders(true);
+      const response = await getPlaceholders(templateName);
+      setPlaceholders(Array.isArray(response.data) ? response.data : []);
+      // Reset values when switching templates
+      setValues({});
     } catch (e) {
-      console.error(e);
+      toast.error(`Failed to load placeholders for ${templateName}`);
+      setPlaceholders([]);
+    } finally {
+      setLoadingPlaceholders(false);
     }
   }
 
   function updateValue(key, value) {
-    setValues(prev => ({ ...prev, [key]: value }));
+    setValues((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleGenerate() {
@@ -65,12 +80,12 @@ function Generate() {
       setLoading(true);
       const request = {
         templateName: selectedTemplate,
-        placeholders: values
+        placeholders: values,
       };
 
       const formData = new FormData();
       formData.append("data", JSON.stringify(request));
-      
+
       if (logo) {
         formData.append("logo", logo);
       }
@@ -78,18 +93,21 @@ function Generate() {
       const response = await generateDocument(formData);
       const filename = response.generatedFile;
       
-      // Original logic for download
-      const url = `http://localhost:5050/api/documents/download/${filename}`;
+      toast.success("Document generated! Starting download...");
+
+      // Use the API client to stream the download properly
+      const downloadRes = await downloadDocument(filename);
+      const url = window.URL.createObjectURL(new Blob([downloadRes.data]));
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
-
+      window.URL.revokeObjectURL(url);
     } catch (e) {
-      console.error(e);
-      alert("Failed to generate document");
+      const msg = e?.response?.data?.message || "Failed to generate document";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -110,18 +128,26 @@ function Generate() {
                 templates={templates}
                 selectedTemplate={selectedTemplate}
                 onChange={setSelectedTemplate}
+                disabled={loadingTemplates || loading}
               />
 
-              {selectedTemplate && placeholders.length > 0 && (
+              {loadingPlaceholders && (
+                <div style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
+                  Loading placeholders...
+                </div>
+              )}
+
+              {selectedTemplate && !loadingPlaceholders && placeholders.length > 0 && (
                 <PlaceholderForm
                   placeholders={placeholders}
                   values={values}
                   onChange={updateValue}
+                  disabled={loading}
                 />
               )}
 
-              {selectedTemplate && (
-                <LogoUpload logo={logo} onChange={setLogo} />
+              {selectedTemplate && !loadingPlaceholders && (
+                <LogoUpload logo={logo} onChange={setLogo} disabled={loading} />
               )}
             </div>
 
@@ -129,7 +155,7 @@ function Generate() {
               <Button
                 size="lg"
                 loading={loading}
-                disabled={!selectedTemplate}
+                disabled={!selectedTemplate || loadingPlaceholders}
                 onClick={handleGenerate}
                 rightIcon={<Play size={16} fill="currentColor" />}
               >
@@ -140,10 +166,10 @@ function Generate() {
         </div>
 
         <div className="generate-sidebar">
-          <DocumentSummary 
-            template={selectedTemplate} 
-            placeholders={placeholders} 
-            logo={logo} 
+          <DocumentSummary
+            template={selectedTemplate}
+            placeholders={placeholders}
+            logo={logo}
           />
         </div>
       </div>

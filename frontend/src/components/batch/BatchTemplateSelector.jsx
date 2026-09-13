@@ -1,8 +1,10 @@
 import { cn } from "../../utils/cn";
 
-function BatchTemplateSelector({ templates, selected, onChange }) {
+function BatchTemplateSelector({ templates, selected, onChange, disabled }) {
   
   function toggleTemplate(templateName) {
+    if (disabled) return;
+    
     if (selected.includes(templateName)) {
       onChange(selected.filter(t => t !== templateName));
     } else {
@@ -23,12 +25,18 @@ function BatchTemplateSelector({ templates, selected, onChange }) {
           return (
             <label
               key={template.name}
-              className={cn("batch-template-checkbox", isChecked && "checked")}
+              className={cn(
+                  "batch-template-checkbox", 
+                  isChecked && "checked",
+                  disabled && "disabled"
+              )}
+              style={{ opacity: disabled ? 0.6 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
             >
               <input
                 type="checkbox"
                 checked={isChecked}
                 onChange={() => toggleTemplate(template.name)}
+                disabled={disabled}
               />
               <span title={template.name}>{template.name}</span>
             </label>

@@ -18,6 +18,8 @@ import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.apache.poi.xwpf.usermodel.XWPFHeader;
+import org.apache.poi.xwpf.usermodel.XWPFFooter;
 
 /**
  * Service for discovering placeholder keys (e.g. {@code {{name}}}) within
@@ -39,19 +41,46 @@ public class PlaceholderDiscoveryService {
      */
     public Set<String> discoverPlaceholders(XWPFDocument document) {
 
-        Set<String> placeholders = new HashSet<>();
+    Set<String> placeholders = new HashSet<>();
 
-        for (XWPFParagraph paragraph : document.getParagraphs()) {
+    // Body paragraphs
+    for (XWPFParagraph paragraph : document.getParagraphs()) {
+        extractPlaceholders(paragraph.getText(), placeholders);
+    }
+
+    // Body tables
+    for (XWPFTable table : document.getTables()) {
+        scanTable(table, placeholders);
+    }
+
+    // Headers
+    for (XWPFHeader header : document.getHeaderList()) {
+
+        for (XWPFParagraph paragraph : header.getParagraphs()) {
             extractPlaceholders(paragraph.getText(), placeholders);
         }
 
-        for (XWPFTable table : document.getTables()) {
+        for (XWPFTable table : header.getTables()) {
             scanTable(table, placeholders);
         }
-
-        logger.debug("Discovered {} placeholder(s) in Word document", placeholders.size());
-        return placeholders;
     }
+
+    // Footers
+    for (XWPFFooter footer : document.getFooterList()) {
+
+        for (XWPFParagraph paragraph : footer.getParagraphs()) {
+            extractPlaceholders(paragraph.getText(), placeholders);
+        }
+
+        for (XWPFTable table : footer.getTables()) {
+            scanTable(table, placeholders);
+        }
+    }
+
+    logger.debug("Discovered {} placeholder(s) in Word document", placeholders.size());
+
+    return placeholders;
+}
 
     /**
      * Discovers all placeholder keys present in an Excel (.xlsx) workbook,
@@ -111,7 +140,7 @@ public class PlaceholderDiscoveryService {
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
 
         while (matcher.find()) {
-            placeholders.add(matcher.group(1));
+            placeholders.add(matcher.group(1).trim());
         }
     }
 }

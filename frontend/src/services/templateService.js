@@ -1,52 +1,37 @@
+import apiClient from "./apiClient";
 import axios from "axios";
+const API = "http://localhost:5050";;
 
-const API = axios.create({
-    baseURL: "http://localhost:5050/api",
-});
 
 export const getTemplates = async () => {
-
-    const response = await API.get("/templates");
-
-    return response.data;
-
+  const response = await apiClient.get("/templates");
+  return response.data;
 };
 
 export const uploadTemplate = async (templateId, file) => {
+  const formData = new FormData();
+  formData.append("templateId", templateId);
+  formData.append("file", file);
 
-    const formData = new FormData();
+  const response = await apiClient.post("/templates/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
-    formData.append("templateId", templateId);
-
-    formData.append("file", file);
-
-    const response = await API.post(
-
-        "/templates/upload",
-
-        formData,
-
-        {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-        }
-
-    );
-
-    return response.data;
-
+  return response.data;
 };
-
 
 export const deleteTemplate = async (templateId) => {
-
-    const response = await API.delete(
-
-        `/templates/${templateId}`
-
-    );
-
-    return response.data;
-
+  const response = await apiClient.delete(`/templates/${templateId}`);
+  return response.data;
 };
+
+export async function previewTemplate(templateName) {
+  const response = await axios.get(
+    `${API}/api/templates/preview/${encodeURIComponent(templateName)}`,
+    {
+      responseType: "blob",
+    }
+  );
+
+  return response.data;
+}

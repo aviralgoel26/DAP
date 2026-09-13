@@ -1,7 +1,7 @@
 import { Download, FileText } from "lucide-react";
 import Button from "../ui/Button";
 
-function HistoryRow({ item, onDownload }) {
+function HistoryRow({ item, onDownload, downloadingId }) {
   const sizeKb = (item.size / 1024).toFixed(1);
   const date = new Date(item.lastModified).toLocaleDateString("en-US", {
     year: "numeric", month: "short", day: "numeric",
@@ -9,6 +9,9 @@ function HistoryRow({ item, onDownload }) {
   const time = new Date(item.lastModified).toLocaleTimeString("en-US", {
     hour: "2-digit", minute: "2-digit",
   });
+
+  const isDownloading = downloadingId === item.filename;
+  const anyDownloading = !!downloadingId;
 
   return (
     <tr>
@@ -34,8 +37,10 @@ function HistoryRow({ item, onDownload }) {
         <Button
           size="sm"
           variant="secondary"
-          leftIcon={<Download size={13} />}
+          leftIcon={!isDownloading ? <Download size={13} /> : undefined}
           onClick={() => onDownload(item.filename)}
+          loading={isDownloading}
+          disabled={anyDownloading}
         >
           Download
         </Button>

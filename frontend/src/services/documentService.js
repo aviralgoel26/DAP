@@ -1,62 +1,35 @@
-import axios from "axios";
-
-const API = axios.create({
-    baseURL: "http://localhost:5050/api",
-});
+import apiClient from "./apiClient";
 
 export const getTemplates = () => {
-
-    return API.get("/templates");
-
+  return apiClient.get("/templates");
 };
 
 export const getPlaceholders = (template) => {
-
-    return API.get(`/documents/${template}/placeholders`);
-
+  return apiClient.get(`/documents/${template}/placeholders`);
 };
 
 export const generateDocument = async (formData) => {
-
-    const response = await API.post(
-        "/documents/generate",
-        formData,
-        {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            }
-        }
-    );
-
-    return response.data;
-
+  const response = await apiClient.post("/documents/generate", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
 };
+
 export const generateBatch = async (formData) => {
-
-    const response = await API.post(
-        "/batch/generate",
-        formData,
-        {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            }
-        }
-    );
-
-    return response.data;
-
+  const response = await apiClient.post("/batch/generate", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
 };
 
 export const downloadBatch = (filename) => {
+  return apiClient.get(`/batch/download/${filename}`, {
+    responseType: "blob",
+  });
+};
 
-    return API.get(
-
-        `/batch/download/${filename}`,
-
-        {
-            responseType: "blob"
-        }
-
-    );
-
+export const downloadDocument = (filename) => {
+  return apiClient.get(`/documents/download/${filename}`, {
+    responseType: "blob",
+  });
 };

@@ -1,6 +1,6 @@
 import Input from "../ui/Input";
 
-function PlaceholderForm({ placeholders, values, onChange }) {
+function PlaceholderForm({ placeholders, values, onChange, disabled }) {
   const dataPlaceholders = placeholders.filter(p => p !== "logo");
 
   if (dataPlaceholders.length === 0) return null;
@@ -20,6 +20,7 @@ function PlaceholderForm({ placeholders, values, onChange }) {
             placeholder={`Enter ${name}...`}
             value={values[name] || ""}
             onChange={(e) => onChange(name, e.target.value)}
+            disabled={disabled}
           />
         ))}
       </div>

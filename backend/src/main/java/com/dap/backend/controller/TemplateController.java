@@ -1,11 +1,14 @@
 package com.dap.backend.controller;
-
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
-
+import java.nio.file.Files;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,11 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-
+import org.springframework.http.HttpHeaders;
 import com.dap.backend.model.TemplateInfo;
 import com.dap.backend.service.TemplateService;
 import com.dap.backend.service.TemplateUploadService;
-
+import com.dap.backend.service.FileService;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import io.swagger.v3.oas.annotations.Operation;
 /**
  * REST controller for template listing and upload operations.
@@ -40,6 +45,9 @@ public class TemplateController {
 
     @Autowired
     private TemplateUploadService templateUploadService;
+    
+    @Autowired
+    private FileService fileService;
 
     /**
      * Returns a list of all available templates.
@@ -93,5 +101,40 @@ public String deleteTemplate(
 
     return "Template deleted successfully.";
 
+}
+@GetMapping("/preview/{templateName}")
+public ResponseEntity<InputStreamResource> previewTemplate(
+        @PathVariable String templateName) throws IOException {
+
+    String path = fileService.findTemplateFile(templateName);
+
+    File file = new File(path);
+
+    if (!file.exists()) {
+        throw new IllegalArgumentException("Template not found.");
+    }
+
+    InputStreamResource resource =
+            new InputStreamResource(new FileInputStream(file));
+
+    String contentType = Files.probeContentType(file.toPath());
+
+    if (contentType == null) {
+
+        if (path.endsWith(".docx")) {
+            contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        } else if (path.endsWith(".xlsx")) {
+            contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        } else {
+            contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+    }
+
+    return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                    "inline; filename=\"" + file.getName() + "\"")
+            .contentLength(file.length())
+            .contentType(MediaType.parseMediaType(contentType))
+            .body(resource);
 }
 }

@@ -1,8 +1,10 @@
 package com.dap.backend.controller;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,14 +25,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dap.backend.model.BatchRequest;
 import com.dap.backend.model.BatchResponse;
+import com.dap.backend.repository.GenerationHistoryDocument;
+import com.dap.backend.repository.GenerationHistoryRepository;
 import com.dap.backend.service.BatchGenerationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 /**
  * REST controller for batch document generation and ZIP download operations.
  */
-import io.swagger.v3.oas.annotations.tags.Tag;
-
 @Tag(
         name = "Batch API",
         description = "APIs for generating multiple documents and ZIP downloads"
@@ -45,51 +49,48 @@ public class BatchController {
     @Autowired
     private BatchGenerationService batchGenerationService;
 
+    @Autowired
+    private GenerationHistoryRepository historyRepository;
+
     @Value("${generated.storage.path}")
     private String generatedPath;
 
     /**
      * Generates a batch of documents from multiple templates and packages them into a ZIP file.
      *
-     * @param request the batch request containing template names and placeholder values
-     * @param logo    optional logo image to embed in the generated documents
+     * @param json the batch request JSON containing template names and placeholder values
+     * @param logo optional logo image to embed in the generated documents
      * @return a {@link BatchResponse} containing a status message and the ZIP filename
      */
     @Operation(
-    summary="Generate Batch",
-    description="Generates multiple documents and returns a ZIP file."
-)
+            summary = "Generate Batch",
+            description = "Generates multiple documents and returns a ZIP file."
+    )
     @PostMapping(
-        value = "/generate",
-        consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-)
-public BatchResponse generateBatch(
+            value = "/generate",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public BatchResponse generateBatch(
+            @RequestPart("data") String json,
+            @RequestPart(value = "logo", required = false) MultipartFile logo
+    ) throws Exception {
 
-        @RequestPart("data") String json,
+        BatchRequest request = objectMapper.readValue(json, BatchRequest.class);
 
-        @RequestPart(
-                value = "logo",
-                required = false
-        ) MultipartFile logo
+        logger.info(
+                "Batch generation requested for {} template(s)",
+                request.getTemplates().size()
+        );
 
-) throws Exception {
+        BatchResponse response = batchGenerationService.generateBatch(request, logo);
 
-    BatchRequest request =
-            objectMapper.readValue(
-                    json,
-                    BatchRequest.class
-            );
+        // Persist batch ZIP history to MongoDB (outside generation logic — service untouched)
+        if (response != null && response.getZipFile() != null) {
+            saveHistory(response.getZipFile(), "Batch");
+        }
 
-    logger.info(
-            "Batch generation requested for {} template(s)",
-            request.getTemplates().size()
-    );
-
-    return batchGenerationService.generateBatch(
-            request,
-            logo
-    );
-}
+        return response;
+    }
 
     /**
      * Downloads a previously generated ZIP file by name.
@@ -99,9 +100,9 @@ public BatchResponse generateBatch(
      * @throws IOException if the file cannot be read
      */
     @Operation(
-    summary="Download ZIP",
-    description="Downloads the generated ZIP archive."
-)
+            summary = "Download ZIP",
+            description = "Downloads the generated ZIP archive."
+    )
     @GetMapping("/download/{zipName}")
     public ResponseEntity<Resource> downloadZip(@PathVariable String zipName) throws IOException {
 
@@ -119,5 +120,24 @@ public BatchResponse generateBatch(
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipName + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
+    }
+
+    /**
+     * Records a successful batch generation event in MongoDB history.
+     */
+    private void saveHistory(String zipFilename, String templateName) {
+        try {
+            File zipFile = new File(generatedPath, zipFilename);
+            GenerationHistoryDocument doc = GenerationHistoryDocument.builder()
+                    .filename(zipFilename)
+                    .templateName(templateName)
+                    .size(zipFile.exists() ? zipFile.length() : 0L)
+                    .generatedAt(Instant.now())
+                    .build();
+            historyRepository.save(doc);
+            logger.debug("History record saved for batch ZIP '{}'", zipFilename);
+        } catch (Exception e) {
+            logger.error("Failed to save history record for batch ZIP '{}': {}", zipFilename, e.getMessage(), e);
+        }
     }
 }

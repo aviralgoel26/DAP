@@ -1,7 +1,8 @@
 package com.dap.backend.service;
 
 import java.util.Map;
-
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
 /**
@@ -28,7 +29,13 @@ public class PlaceholderEngine {
         String updatedText = text;
 
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
-            updatedText = updatedText.replace("{{" + entry.getKey() + "}}", entry.getValue());
+            updatedText = updatedText.replaceAll(
+            "\\{\\{\\s*" +
+            Pattern.quote(entry.getKey()) +
+            "\\s*\\}\\}",
+            Matcher.quoteReplacement(entry.getValue())
+    );
+
         }
 
         return updatedText;

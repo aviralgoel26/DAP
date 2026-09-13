@@ -1,6 +1,6 @@
 import HistoryRow from "./HistoryRow";
 
-function HistoryTable({ history, onDownload }) {
+function HistoryTable({ history, onDownload, downloadingId }) {
   return (
     <div className="history-table-wrap">
       <table className="data-table">
@@ -18,6 +18,7 @@ function HistoryTable({ history, onDownload }) {
               key={item.filename}
               item={item}
               onDownload={onDownload}
+              downloadingId={downloadingId}
             />
           ))}
         </tbody>

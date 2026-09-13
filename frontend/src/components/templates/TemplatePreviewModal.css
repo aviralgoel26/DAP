@@ -1,0 +1,112 @@
+.preview-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(6px);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:9999;
+}
+
+.preview-modal{
+    width:92%;
+    height:92%;
+    background:#fff;
+    border-radius:18px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 20px 80px rgba(0,0,0,.25);
+}
+
+.preview-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 24px;
+    border-bottom:1px solid #eee;
+}
+
+.preview-title{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    font-size:18px;
+    font-weight:600;
+}
+
+.preview-close{
+    border:none;
+    background:none;
+    cursor:pointer;
+}
+
+.preview-body{
+    flex:1;
+    overflow:auto;
+    padding:30px;
+    background:#f5f7fb;
+}
+
+.preview-footer{
+    border-top:1px solid #eee;
+    padding:18px;
+    display:flex;
+    justify-content:flex-end;
+}
+
+.download-btn{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:none;
+    cursor:pointer;
+    padding:10px 20px;
+    border-radius:10px;
+    background:#2563eb;
+    color:white;
+    font-weight:600;
+}
+
+.preview-loading{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:20px;
+}
+
+.spin{
+    animation:spin 1s linear infinite;
+}
+
+@keyframes spin{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+}
+
+.word-preview{
+    background:white;
+    padding:40px;
+    min-height:100%;
+    border-radius:12px;
+}
+
+.excel-preview table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.excel-preview td,
+.excel-preview th{
+    border:1px solid #ddd;
+    padding:8px;
+}
+
+.preview-error{
+    text-align:center;
+    color:#dc2626;
+    font-weight:600;
+}

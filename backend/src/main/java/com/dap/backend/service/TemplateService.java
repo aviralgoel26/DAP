@@ -1,77 +1,48 @@
 package com.dap.backend.service;
 
-import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.dap.backend.model.TemplateInfo;
+import com.dap.backend.repository.TemplateRepository;
 
 /**
- * Service for listing available document templates from the template storage directory.
+ * Service for listing available document templates.
+ * Previously scanned the filesystem directory at request time;
+ * now reads persisted metadata from MongoDB for reliability across restarts.
+ * <p>
+ * The filesystem template files remain unchanged — MongoDB stores metadata only.
+ * </p>
  */
 @Service
 public class TemplateService {
 
     private static final Logger logger = LoggerFactory.getLogger(TemplateService.class);
 
-    @Value("${template.storage.path}")
-    private String templatePath;
+    private final TemplateRepository templateRepository;
 
-    /**
-     * Returns all templates found in the template storage directory.
-     * Each template is represented as a folder containing a {@code .docx} or {@code .xlsx} file.
-     * The template type is determined from the actual file found inside the folder.
-     *
-     * @return a list of {@link TemplateInfo} objects, one per template folder; empty if none found
-     */
-    public List<TemplateInfo> getAllTemplates() {
-
-        List<TemplateInfo> templates = new ArrayList<>();
-        File folder = new File(templatePath);
-        File[] directories = folder.listFiles();
-
-        if (directories == null) {
-            logger.warn("Template storage path does not exist or is not a directory: {}", templatePath);
-            return templates;
-        }
-
-        for (File dir : directories) {
-
-            if (!dir.isDirectory()) {
-                continue;
-            }
-
-            String type = resolveTemplateType(dir);
-            templates.add(new TemplateInfo(dir.getName(), type));
-        }
-
-        logger.debug("Found {} template(s) in '{}'", templates.size(), templatePath);
-        return templates;
+    public TemplateService(TemplateRepository templateRepository) {
+        this.templateRepository = templateRepository;
     }
 
     /**
-     * Detects the template type by inspecting the files inside the template folder.
+     * Returns all templates stored in MongoDB.
+     * Each template is mapped to a {@link TemplateInfo} using the templateId (folder name)
+     * and the persisted file type — preserving the existing API response format exactly.
      *
-     * @param templateDir the template folder
-     * @return {@code "XLSX"} if an .xlsx file is found, {@code "DOCX"} otherwise
+     * @return list of {@link TemplateInfo} objects; empty if no templates have been synced yet
      */
-    private String resolveTemplateType(File templateDir) {
+    public List<TemplateInfo> getAllTemplates() {
+        List<TemplateInfo> templates = templateRepository.findAll()
+                .stream()
+                .map(doc -> new TemplateInfo(doc.getId(), doc.getFileType()))
+                .collect(Collectors.toList());
 
-        File[] files = templateDir.listFiles();
-
-        if (files != null) {
-            for (File file : files) {
-                if (file.getName().toLowerCase().endsWith(".xlsx")) {
-                    return "XLSX";
-                }
-            }
-        }
-
-        return "DOCX";
+        logger.debug("Returning {} template(s) from MongoDB", templates.size());
+        return templates;
     }
 }

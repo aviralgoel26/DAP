@@ -1,6 +1,7 @@
 import "./history.css";
 import { useEffect, useMemo, useState } from "react";
 import { Search, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 import PageHeader from "../../components/ui/PageHeader";
 import HistoryTable from "../../components/history/HistoryTable";
@@ -13,6 +14,7 @@ function History() {
   const [history, setHistory] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     loadHistory();
@@ -22,22 +24,33 @@ function History() {
     try {
       setLoading(true);
       const data = await getHistory();
-      setHistory(data);
+      setHistory(Array.isArray(data) ? data : []);
+    } catch (e) {
+      toast.error("Failed to load history.");
+      setHistory([]);
     } finally {
       setLoading(false);
     }
   }
 
   async function handleDownload(filename) {
-    const response = await downloadHistoryFile(filename);
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    if (downloadingId) return;
+    try {
+      setDownloadingId(filename);
+      const response = await downloadHistoryFile(filename);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(`Failed to download ${filename}`);
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
   const filteredHistory = useMemo(
@@ -71,7 +84,11 @@ function History() {
       ) : filteredHistory.length === 0 ? (
         <HistoryEmpty hasSearch={!!search} />
       ) : (
-        <HistoryTable history={filteredHistory} onDownload={handleDownload} />
+        <HistoryTable 
+          history={filteredHistory} 
+          onDownload={handleDownload} 
+          downloadingId={downloadingId} 
+        />
       )}
     </>
   );

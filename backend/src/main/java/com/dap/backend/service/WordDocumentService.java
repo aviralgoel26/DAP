@@ -97,31 +97,43 @@ public class WordDocumentService {
      * Replaces placeholders in all headers of the document.
      */
     private void replaceHeaders(
-            XWPFDocument document,
-            Map<String, String> placeholders,
-            MultipartFile logo) throws Exception {
+        XWPFDocument document,
+        Map<String, String> placeholders,
+        MultipartFile logo) throws Exception {
 
-        for (XWPFHeader header : document.getHeaderList()) {
-            for (XWPFParagraph paragraph : header.getParagraphs()) {
-                replaceParagraph(paragraph, placeholders, logo);
-            }
+    for (XWPFHeader header : document.getHeaderList()) {
+
+        // Standalone paragraphs
+        for (XWPFParagraph paragraph : header.getParagraphs()) {
+            replaceParagraph(paragraph, placeholders, logo);
+        }
+
+        // Tables inside header
+        for (XWPFTable table : header.getTables()) {
+            replaceTable(table, placeholders, logo);
         }
     }
+}
 
     /**
      * Replaces placeholders in all footers of the document.
      */
     private void replaceFooters(
-            XWPFDocument document,
-            Map<String, String> placeholders,
-            MultipartFile logo) throws Exception {
+        XWPFDocument document,
+        Map<String, String> placeholders,
+        MultipartFile logo) throws Exception {
 
-        for (XWPFFooter footer : document.getFooterList()) {
-            for (XWPFParagraph paragraph : footer.getParagraphs()) {
-                replaceParagraph(paragraph, placeholders, logo);
-            }
+    for (XWPFFooter footer : document.getFooterList()) {
+
+        for (XWPFParagraph paragraph : footer.getParagraphs()) {
+            replaceParagraph(paragraph, placeholders, logo);
+        }
+
+        for (XWPFTable table : footer.getTables()) {
+            replaceTable(table, placeholders, logo);
         }
     }
+}
 
     /**
      * Processes a single paragraph: attempts logo replacement first, then text placeholder replacement.
@@ -180,7 +192,6 @@ public class WordDocumentService {
     private void replaceLogo(XWPFParagraph paragraph, MultipartFile logo) throws Exception {
 
         if (logo == null) {
-            logger.debug("No logo provided; skipping logo replacement.");
             return;
         }
 
@@ -200,8 +211,8 @@ public class WordDocumentService {
                 logo.getInputStream(),
                 getPictureType(logo),
                 logo.getOriginalFilename(),
-                Units.toEMU(120),
-                Units.toEMU(120)
+                Units.toEMU(100),
+                Units.toEMU(100)
         );
     }
 

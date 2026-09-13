@@ -1,14 +1,15 @@
 import TemplateCard from "./TemplateCard";
-import "../../pages/Templates/templates.css";
 
-function TemplateGrid({ templates, onDelete }) {
+function TemplateGrid({ templates, onDelete, deletingId, onPreview}) {
   return (
     <div className="template-grid">
-      {templates.map(template => (
+      {templates.map((template) => (
         <TemplateCard
           key={template.name}
           template={template}
           onDelete={onDelete}
+          deletingId={deletingId}
+          onPreview={onPreview}
         />
       ))}
     </div>

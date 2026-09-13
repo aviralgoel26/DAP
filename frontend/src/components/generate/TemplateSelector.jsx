@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 
-function TemplateSelector({ templates, selectedTemplate, onChange }) {
+function TemplateSelector({ templates, selectedTemplate, onChange, disabled }) {
   return (
     <div>
       <div className="form-section-header">
@@ -14,7 +14,8 @@ function TemplateSelector({ templates, selectedTemplate, onChange }) {
             className="input-field"
             value={selectedTemplate}
             onChange={(e) => onChange(e.target.value)}
-            style={{ paddingLeft: "36px", cursor: "pointer" }}
+            style={{ paddingLeft: "36px", cursor: disabled ? "not-allowed" : "pointer" }}
+            disabled={disabled}
           >
             <option value="">Select a template...</option>
             {templates.map(template => (

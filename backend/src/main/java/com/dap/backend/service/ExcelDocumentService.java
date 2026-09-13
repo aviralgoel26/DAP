@@ -34,25 +34,6 @@ public class ExcelDocumentService {
     @Autowired
     private PlaceholderEngine placeholderEngine;
 
-    /**
-     * Diagnostic utility: logs the sheet names and discovered placeholders of a workbook.
-     * Intended for development use only; not exposed via any API endpoint.
-     *
-     * @param workbook the workbook to inspect
-     */
-    public void readWorkbook(XSSFWorkbook workbook) {
-
-        logger.debug("===== WORKBOOK =====");
-
-        for (Sheet sheet : workbook) {
-            logger.debug("Sheet: {}", sheet.getSheetName());
-        }
-
-        Set<String> placeholders = placeholderDiscoveryService.discoverPlaceholders(workbook);
-
-        logger.debug("===== PLACEHOLDERS =====");
-        placeholders.forEach(p -> logger.debug("{}", p));
-    }
 
     /**
      * Iterates over all sheets in the workbook and replaces placeholder text and logo in each cell.

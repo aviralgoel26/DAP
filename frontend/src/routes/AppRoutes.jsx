@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import AppLayout from "../layouts/AppLayout";
 
@@ -11,45 +11,16 @@ import Settings from "../pages/Settings/Settings";
 
 function AppRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
-
-        <Route element={<AppLayout />}>
-
-          <Route
-            path="/"
-            element={<Dashboard />}
-          />
-
-          <Route
-            path="/generate"
-            element={<Generate />}
-          />
-
-          <Route
-            path="/batch"
-            element={<Batch />}
-          />
-
-          <Route
-            path="/templates"
-            element={<Templates />}
-          />
-
-          <Route
-            path="/history"
-            element={<History />}
-          />
-
-          <Route
-            path="/settings"
-            element={<Settings />}
-          />
-
-        </Route>
-
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/generate" element={<Generate />} />
+        <Route path="/batch" element={<Batch />} />
+        <Route path="/templates" element={<Templates />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
+    </Routes>
   );
 }
 

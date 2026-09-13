@@ -1,33 +1,11 @@
-import axios from "axios";
-
-const API = axios.create({
-
-    baseURL: "http://localhost:5050/api"
-
-});
+import apiClient from "./apiClient";
 
 export const getSettings = async () => {
-
-    const response = await API.get(
-
-        "/settings"
-
-    );
-
-    return response.data;
-
+  const response = await apiClient.get("/settings");
+  return response.data;
 };
 
 export const saveSettings = async (settings) => {
-
-    const response = await API.put(
-
-        "/settings",
-
-        settings
-
-    );
-
-    return response.data;
-
+  const response = await apiClient.put("/settings", settings);
+  return response.data;
 };

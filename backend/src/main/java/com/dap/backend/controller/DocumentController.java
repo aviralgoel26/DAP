@@ -1,9 +1,10 @@
 package com.dap.backend.controller;
 
 import java.io.*;
+import java.time.Instant;
 import java.util.Set;
 import java.nio.file.Paths;
-
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dap.backend.model.DocumentRequest;
 import com.dap.backend.model.DocumentResponse;
+import com.dap.backend.repository.GenerationHistoryDocument;
+import com.dap.backend.repository.GenerationHistoryRepository;
 import com.dap.backend.service.DocumentEngineService;
 import com.dap.backend.service.FileService;
 import com.dap.backend.service.PlaceholderDiscoveryService;
@@ -61,6 +64,9 @@ public class DocumentController {
     @Autowired
     private Validator validator;
 
+    @Autowired
+    private GenerationHistoryRepository historyRepository;
+
     /**
      * Reads the raw text content of a Word template.
      *
@@ -76,6 +82,7 @@ public class DocumentController {
 
     /**
      * Generates a single document from a template by replacing placeholders.
+     * After successful generation, records the event in MongoDB history.
      *
      * @param json the JSON-serialized {@link DocumentRequest}
      * @param logo optional logo image to embed in the document
@@ -122,7 +129,14 @@ if (!violations.isEmpty()) {
 }
 
         logger.info("Generating document for template: {}", request.getTemplateName());
-        return engineService.generateDocument(request, logo);
+        DocumentResponse response = engineService.generateDocument(request, logo);
+
+        // Persist generation history to MongoDB (outside generation logic — engine unchanged)
+        if (response.getGeneratedFile() != null) {
+            saveHistory(response.getGeneratedFile(), request.getTemplateName());
+        }
+
+        return response;
     }
 
     /**
@@ -134,18 +148,46 @@ if (!violations.isEmpty()) {
      */
     
     @GetMapping("/{templateName}/placeholders")
-    public Set<String> discoverPlaceholders(@PathVariable String templateName) throws IOException {
+public Set<String> discoverPlaceholders(
+        @PathVariable String templateName
+) throws IOException {
 
-        logger.info("Discovering placeholders for template: {}", templateName);
+    logger.info("Discovering placeholders for template: {}", templateName);
 
-        String path = fileService.findTemplateFile(templateName);
+    String path = fileService.findTemplateFile(templateName);
 
-        try (FileInputStream fis = new FileInputStream(path);
-             XWPFDocument document = new XWPFDocument(fis)) {
+    if (path.toLowerCase().endsWith(".docx")) {
 
-            return placeholderDiscoveryService.discoverPlaceholders(document);
+        try (
+                FileInputStream fis = new FileInputStream(path);
+                XWPFDocument document = new XWPFDocument(fis)
+        ) {
+
+            return placeholderDiscoveryService
+                    .discoverPlaceholders(document);
+
         }
+
     }
+
+    if (path.toLowerCase().endsWith(".xlsx")) {
+
+        try (
+                FileInputStream fis = new FileInputStream(path);
+                XSSFWorkbook workbook = new XSSFWorkbook(fis)
+        ) {
+
+            return placeholderDiscoveryService
+                    .discoverPlaceholders(workbook);
+
+        }
+
+    }
+
+    throw new IllegalArgumentException(
+            "Unsupported template type: " + path
+    );
+}
 
     @GetMapping("/download/{fileName}")
 public ResponseEntity<InputStreamResource> downloadDocument(
@@ -187,4 +229,25 @@ String path =
             .body(resource);
 
 }
+
+    /**
+     * Records a successful document generation event in MongoDB history.
+     * Called after the generation engine completes — the engine itself is untouched.
+     */
+    private void saveHistory(String generatedFilename, String templateName) {
+        try {
+            File genFile = new File(fileService.getGeneratedDirectory(), generatedFilename);
+            GenerationHistoryDocument doc = GenerationHistoryDocument.builder()
+                    .filename(generatedFilename)
+                    .templateName(templateName)
+                    .size(genFile.exists() ? genFile.length() : 0L)
+                    .generatedAt(Instant.now())
+                    .build();
+            historyRepository.save(doc);
+            logger.debug("History record saved for '{}'", generatedFilename);
+        } catch (Exception e) {
+            // Log but don't fail the generation response — history is supplementary
+            logger.error("Failed to save history record for '{}': {}", generatedFilename, e.getMessage(), e);
+        }
+    }
 }
