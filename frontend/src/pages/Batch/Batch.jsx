@@ -1,4 +1,4 @@
-import "./batch.css";
+import "./Batch.css";
 import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import { toast } from "sonner";
