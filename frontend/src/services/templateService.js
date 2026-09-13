@@ -1,7 +1,4 @@
 import apiClient from "./apiClient";
-import axios from "axios";
-const API = "http://localhost:5050";;
-
 
 export const getTemplates = async () => {
   const response = await apiClient.get("/templates");
@@ -26,8 +23,8 @@ export const deleteTemplate = async (templateId) => {
 };
 
 export async function previewTemplate(templateName) {
-  const response = await axios.get(
-    `${API}/api/templates/preview/${encodeURIComponent(templateName)}`,
+  const response = await apiClient.get(
+    `/templates/preview/${encodeURIComponent(templateName)}`,
     {
       responseType: "blob",
     }
