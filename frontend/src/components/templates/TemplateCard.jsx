@@ -14,16 +14,24 @@ function TemplateCard({
   onPreview,
 }) {
 
-  const extension = template.name
-    .split(".")
-    .pop()
-    ?.toLowerCase();
+  const fileType = (
+    template.fileType ||
+    template.type ||
+    template.fileName?.split(".").pop() ||
+    template.name?.split(".").pop() ||
+    ""
+  ).toLowerCase();
 
-  const isDeleting =
-    deletingId === template.name;
+  const isWord = fileType === "docx";
+  const isExcel = fileType === "xlsx";
 
-  const isWord = extension === "docx";
-  const isExcel = extension === "xlsx";
+  const isDeleting = deletingId === template.name;
+
+  const typeLabel = isWord
+    ? "Word Template"
+    : isExcel
+    ? "Excel Template"
+    : "Template";
 
   return (
     <div className="template-card">
@@ -50,11 +58,7 @@ function TemplateCard({
           </div>
 
           <div className="template-card-type">
-
-            {isWord
-              ? "Word Template"
-              : "Excel Template"}
-
+            {typeLabel}
           </div>
 
         </div>

@@ -88,7 +88,23 @@ public class TemplateSyncService {
             if (existingOpt.isPresent()) {
                 TemplateDocument doc = existingOpt.get();
 
-                // 1. If metadata exists and already has a valid GridFS file -> skip upload
+                // Self-heal missing or inconsistent metadata on existing MongoDB record
+                boolean metadataUpdated = false;
+                if (doc.getFileType() == null || doc.getFileType().isBlank() || !doc.getFileType().equalsIgnoreCase(fileType)) {
+                    doc.setFileType(fileType);
+                    metadataUpdated = true;
+                }
+                if (doc.getOriginalFilename() == null || doc.getOriginalFilename().isBlank()) {
+                    doc.setOriginalFilename(templateFile.getName());
+                    metadataUpdated = true;
+                }
+                if (metadataUpdated) {
+                    templateRepository.save(doc);
+                    logger.info("Healed metadata for existing template '{}' (fileType: {}, originalFilename: {})",
+                            templateId, fileType, templateFile.getName());
+                }
+
+                // 1. If metadata exists and already has a valid GridFS file -> skip duplicate upload
                 if (doc.getGridFsFileId() != null && templateFileStorageService.exists(doc.getGridFsFileId())) {
                     logger.debug("Template '{}' already has valid GridFS file ({}) — skipping duplicate upload",
                             templateId, doc.getGridFsFileId());

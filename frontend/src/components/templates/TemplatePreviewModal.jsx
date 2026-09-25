@@ -14,6 +14,16 @@ function TemplatePreviewModal({ open, template, onClose }) {
   const [error, setError] = useState("");
   const [excelHtml, setExcelHtml] = useState("");
 
+  const fileType = (
+    template?.fileType ||
+    template?.type ||
+    template?.fileName?.split(".").pop() ||
+    template?.name?.split(".").pop() ||
+    ""
+  ).toLowerCase();
+
+  const isWord = fileType === "docx";
+
   useEffect(() => {
     if (!open || !template) return;
 
@@ -33,14 +43,9 @@ function TemplatePreviewModal({ open, template, onClose }) {
     try {
       const blob = await previewTemplate(template.name);
 
-      const extension =
-    template.type?.toLowerCase() ||
-    template.name.split(".").pop().toLowerCase();
-
-    
-      if (extension === "docx") {
+      if (isWord) {
         await renderDocx(blob);
-      } else if (extension === "xlsx") {
+      } else if (fileType === "xlsx") {
         await renderExcel(blob);
       } else {
         setError("Preview not supported.");
@@ -108,7 +113,7 @@ function TemplatePreviewModal({ open, template, onClose }) {
 
           <div className="preview-title">
 
-            {template.name.endsWith(".docx") ? (
+            {isWord ? (
               <FileText size={18}/>
             ) : (
               <Sheet size={18}/>

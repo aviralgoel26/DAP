@@ -168,8 +168,14 @@ public class TemplateUploadService {
      * @return {@code "XLSX"} for .xlsx files, {@code "DOCX"} otherwise
      */
     private String resolveFileType(String filename) {
-        if (filename != null && filename.toLowerCase().endsWith(".xlsx")) {
-            return "XLSX";
+        if (filename != null) {
+            String lower = filename.toLowerCase().trim();
+            if (lower.endsWith(".xlsx")) {
+                return "XLSX";
+            }
+            if (lower.endsWith(".docx")) {
+                return "DOCX";
+            }
         }
         return "DOCX";
     }

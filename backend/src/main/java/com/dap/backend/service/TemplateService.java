@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.dap.backend.model.TemplateInfo;
+import com.dap.backend.repository.TemplateDocument;
 import com.dap.backend.repository.TemplateRepository;
 
 /**
@@ -39,10 +40,42 @@ public class TemplateService {
     public List<TemplateInfo> getAllTemplates() {
         List<TemplateInfo> templates = templateRepository.findAll()
                 .stream()
-                .map(doc -> new TemplateInfo(doc.getId(), doc.getFileType()))
+                .map(this::toTemplateInfo)
                 .collect(Collectors.toList());
 
         logger.debug("Returning {} template(s) from MongoDB", templates.size());
         return templates;
+    }
+
+    private TemplateInfo toTemplateInfo(TemplateDocument doc) {
+        String type = resolveFileType(doc);
+        String fileType = type != null ? type.toLowerCase() : null;
+        String fileName = doc.getOriginalFilename();
+        return new TemplateInfo(doc.getId(), type, fileType, fileName);
+    }
+
+    private String resolveFileType(TemplateDocument doc) {
+        if (doc.getFileType() != null && !doc.getFileType().isBlank()) {
+            return doc.getFileType().toUpperCase();
+        }
+        if (doc.getOriginalFilename() != null && !doc.getOriginalFilename().isBlank()) {
+            String lower = doc.getOriginalFilename().toLowerCase().trim();
+            if (lower.endsWith(".xlsx")) {
+                return "XLSX";
+            }
+            if (lower.endsWith(".docx")) {
+                return "DOCX";
+            }
+        }
+        if (doc.getId() != null) {
+            String lower = doc.getId().toLowerCase().trim();
+            if (lower.endsWith(".xlsx")) {
+                return "XLSX";
+            }
+            if (lower.endsWith(".docx")) {
+                return "DOCX";
+            }
+        }
+        return "DOCX";
     }
 }
